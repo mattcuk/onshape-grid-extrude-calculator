@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Onshape Grid Extrude Calculator</title>
+  <!-- Load Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'media',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            onshape: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#1b64f2',
+              600: '#1652c7',
+              700: '#1242a1',
+            }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Main Container -->
+  <div class="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <header class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+      <div class="flex items-center gap-3">
+        <!-- CAD Grid Icon -->
+        <div class="w-10 h-10 rounded-xl bg-onshape-500 text-white flex items-center justify-center shadow-sm shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="9" y1="3" x2="9" y2="21" />
+            <line x1="15" y1="3" x2="15" y2="21" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="3" y1="15" x2="21" y2="15" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Onshape Grid Extrude Calculator
+          </h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400">
+            Convert desired rib widths &amp; gaps into <span class="font-medium text-slate-700 dark:text-slate-300">Rectangle</span> Grid Extrude parameters
+          </p>
+        </div>
+      </div>
+
+      <!-- Preset Quick-Load Button -->
+      <div class="flex items-center gap-2">
+        <button id="presetScreenshotBtn" type="button" class="text-xs font-medium px-3 py-2 rounded-lg bg-slate-200/80 hover:bg-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer">
+          Load Screenshot Example (1 mm rib / 2 mm gap)
+        </button>
+      </div>
+    </header>
+
+    <!-- Mode Banner / Toggle Card -->
+    <section class="mb-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="modeBadge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+              Inverted Mode Active
+            </span>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">Grid Extrude Direction</h2>
+          </div>
+          <p id="modeDescription" class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            When inverting the grid to create solid ribs, Onshape's <strong>Rib thickness</strong> parameter actually sets the <strong>open gap</strong> between ribs.
+          </p>
+        </div>
+
+        <!-- Toggle Switch -->
+        <div class="flex items-center gap-3 self-start sm:self-center bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+          <button id="btnInverted" type="button" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer bg-onshape-500 text-white shadow-sm">
+            Inverted (Making Ribs)
+          </button>
+          <button id="btnStandard" type="button" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+            Standard (Normal)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Two-Column Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Column: Inputs (5 cols) -->
+      <section class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4">
+            1. Your Desired Dimensions
+          </h3>
+
+          <div class="space-y-5">
+            <!-- Desired Rib Width -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="ribWidth" class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Desired Rib Width (<span class="font-mono text-xs">W<sub>rib</sub></span>)
+                </label>
+                <span class="text-xs text-slate-400">Solid wall width</span>
+              </div>
+              <div class="relative flex items-center">
+                <input
+                  id="ribWidth"
+                  type="number"
+                  step="0.1"
+                  min="0.01"
+                  value="2"
+                  class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 pr-12 font-mono text-base font-medium text-slate-900 dark:text-white focus:border-onshape-500 focus:ring-2 focus:ring-onshape-500/20 focus:outline-none transition"
+                />
+                <span class="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">mm</span>
+              </div>
+            </div>
+
+            <!-- Desired Gap Between Ribs -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="gapWidth" class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Desired Space / Gap (<span class="font-mono text-xs">S<sub>gap</sub></span>)
+                </label>
+                <span class="text-xs text-slate-400">Clear opening</span>
+              </div>
+              <div class="relative flex items-center">
+                <input
+                  id="gapWidth"
+                  type="number"
+                  step="0.1"
+                  min="0.01"
+                  value="3"
+                  class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 pr-12 font-mono text-base font-medium text-slate-900 dark:text-white focus:border-onshape-500 focus:ring-2 focus:ring-onshape-500/20 focus:outline-none transition"
+                />
+                <span class="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">mm</span>
+              </div>
+            </div>
+
+            <!-- Square Grid Checkbox -->
+            <div class="pt-1">
+              <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 cursor-pointer select-none">
+                <input
+                  id="squareGrid"
+                  type="checkbox"
+                  checked
+                  class="w-4 h-4 rounded text-onshape-500 border-slate-300 dark:border-slate-600 focus:ring-onshape-500"
+                />
+                <div>
+                  <span class="block text-sm font-medium text-slate-800 dark:text-slate-200">
+                    Square grid (same gap in both directions)
+                  </span>
+                  <span class="block text-xs text-slate-500 dark:text-slate-400">
+                    Uncheck to set a custom lengthwise pocket gap
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            <!-- Lengthwise Gap (Conditional) -->
+            <div id="lengthGapContainer" class="hidden transition-all">
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="gapLength" class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Lengthwise Gap (<span class="font-mono text-xs">S<sub>gap, length</sub></span>)
+                </label>
+                <span class="text-xs text-slate-400">Along grid length</span>
+              </div>
+              <div class="relative flex items-center">
+                <input
+                  id="gapLength"
+                  type="number"
+                  step="0.5"
+                  min="0.01"
+                  value="78"
+                  class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 pr-12 font-mono text-base font-medium text-slate-900 dark:text-white focus:border-onshape-500 focus:ring-2 focus:ring-onshape-500/20 focus:outline-none transition"
+                />
+                <span class="absolute right-3.5 text-xs font-semibold text-slate-400 pointer-events-none">mm</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula Reference Box -->
+        <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Active Formulas</p>
+          <div id="formulaSummary" class="text-xs font-mono bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 p-3 rounded-xl space-y-1 border border-slate-200/70 dark:border-slate-800">
+            <div>Cell pitch = W_rib + S_gap</div>
+            <div>Rib thickness = S_gap (inverted)</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Onshape Output Fields & Diagram (7 cols) -->
+      <div class="lg:col-span-7 flex flex-col gap-6">
+
+        <!-- Onshape Feature Dialog Mock / Outputs -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              2. Enter Into Onshape Grid Extrude
+            </h3>
+            <span class="text-xs font-medium text-onshape-500 dark:text-blue-400">Click any value to copy</span>
+          </div>
+
+          <!-- Simulated Onshape Dialog Rows -->
+          <div class="space-y-3">
+
+            <!-- Cell pitch -->
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-onshape-500/50 transition">
+              <div>
+                <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">Cell pitch</div>
+                <div class="text-xs text-slate-500 dark:text-slate-400">Center-to-center repeat distance</div>
+              </div>
+              <div class="flex items-center gap-2.5">
+                <span id="outCellPitch" class="font-mono text-lg font-bold text-onshape-600 dark:text-blue-400">5 mm</span>
+                <button
+                  type="button"
+                  data-copy-target="outCellPitch"
+                  class="copy-btn p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                  title="Copy Cell pitch"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Cell pitch (length) -->
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-onshape-500/50 transition">
+              <div>
+                <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">Cell pitch (length)</div>
+                <div class="text-xs text-slate-500 dark:text-slate-400">Orthogonal axis repeat distance</div>
+              </div>
+              <div class="flex items-center gap-2.5">
+                <span id="outCellPitchLength" class="font-mono text-lg font-bold text-onshape-600 dark:text-blue-400">5 mm</span>
+                <button
+                  type="button"
+                  data-copy-target="outCellPitchLength"
+                  class="copy-btn p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                  title="Copy Cell pitch (length)"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Rib thickness -->
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-onshape-500/50 transition">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-semibold text-slate-800 dark:text-slate-100">Rib thickness</span>
+                  <span id="ribThicknessTag" class="text-[11px] font-medium px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    = Gap width
+                  </span>
+                </div>
+                <div id="ribThicknessSub" class="text-xs text-slate-500 dark:text-slate-400">Becomes open gap when inverted</div>
+              </div>
+              <div class="flex items-center gap-2.5">
+                <span id="outRibThickness" class="font-mono text-lg font-bold text-onshape-600 dark:text-blue-400">3 mm</span>
+                <button
+                  type="button"
+                  data-copy-target="outRibThickness"
+                  class="copy-btn p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                  title="Copy Rib thickness"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Live Cross-Section Visual Verification -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              3. Resulting Cross-Section Preview
+            </h3>
+            <div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-sm bg-onshape-500 inline-block"></span> Solid Rib
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-sm border border-dashed border-slate-400 bg-slate-100 dark:bg-slate-800 inline-block"></span> Open Gap
+              </span>
+            </div>
+          </div>
+
+          <!-- Responsive SVG Container -->
+          <div class="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 overflow-hidden">
+            <svg id="previewSvg" viewBox="0 0 560 190" class="w-full h-auto block select-none" role="img" aria-label="Cross-section diagram of ribs and gaps">
+              <!-- Dynamic content rendered by JS -->
+            </svg>
+          </div>
+          <p id="validationNote" class="mt-2.5 text-xs text-slate-500 dark:text-slate-400">
+            Verify in Onshape: Solid ribs measure <strong class="text-slate-700 dark:text-slate-200">2 mm</strong> wide with <strong class="text-slate-700 dark:text-slate-200">3 mm</strong> open spaces between them.
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification for Clipboard Copy -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 transition-all duration-200 pointer-events-none">
+    <div class="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
+      <svg class="w-4 h-4 text-emerald-400 dark:text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <span id="toastText">Copied to clipboard</span>
+    </div>
+  </div>
+
+  <script>
+    // Application State
+    const state = {
+      isInverted: true,
+      ribWidth: 2,
+      gapWidth: 3,
+      isSquare: true,
+      gapLength: 78
+    };
+
+    // DOM Elements
+    const el = {
+      btnInverted: document.getElementById('btnInverted'),
+      btnStandard: document.getElementById('btnStandard'),
+      modeBadge: document.getElementById('modeBadge'),
+      modeDescription: document.getElementById('modeDescription'),
+      ribWidth: document.getElementById('ribWidth'),
+      gapWidth: document.getElementById('gapWidth'),
+      squareGrid: document.getElementById('squareGrid'),
+      lengthGapContainer: document.getElementById('lengthGapContainer'),
+      gapLength: document.getElementById('gapLength'),
+      formulaSummary: document.getElementById('formulaSummary'),
+      outCellPitch: document.getElementById('outCellPitch'),
+      outCellPitchLength: document.getElementById('outCellPitchLength'),
+      outRibThickness: document.getElementById('outRibThickness'),
+      ribThicknessTag: document.getElementById('ribThicknessTag'),
+      ribThicknessSub: document.getElementById('ribThicknessSub'),
+      previewSvg: document.getElementById('previewSvg'),
+      validationNote: document.getElementById('validationNote'),
+      presetScreenshotBtn: document.getElementById('presetScreenshotBtn'),
+      toast: document.getElementById('toast'),
+      toastText: document.getElementById('toastText')
+    };
+
+    // Format numbers cleanly up to 3 decimal places without trailing zeros
+    function formatNum(val) {
+      if (!isFinite(val) || val <= 0) return '0';
+      return parseFloat(val.toFixed(3)).toString();
+    }
+
+    // Show toast notification
+    let toastTimer = null;
+    function showToast(message) {
+      el.toastText.textContent = message;
+      el.toast.classList.remove('translate-y-16', 'opacity-0');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.toast.classList.add('translate-y-16', 'opacity-0');
+      }, 1800);
+    }
+
+    // Copy text to clipboard using reliable fallback
+    function copyValue(text) {
+      const tempInput = document.createElement('textarea');
+      tempInput.value = text;
+      tempInput.style.position = 'fixed';
+      tempInput.style.left = '-9999px';
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        showToast(`Copied "${text}"`);
+      } catch (err) {
+        showToast('Could not copy value');
+      }
+      document.body.removeChild(tempInput);
+    }
+
+    // Update UI Mode Styling
+    function updateModeUI() {
+      if (state.isInverted) {
+        el.btnInverted.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer bg-onshape-500 text-white shadow-sm';
+        el.btnStandard.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
+
+        el.modeBadge.textContent = 'Inverted Mode Active';
+        el.modeBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300';
+        el.modeDescription.innerHTML = 'When inverting the grid to create solid ribs, Onshape\'s <strong>Rib thickness</strong> parameter sets the <strong>open gap</strong> between ribs.';
+
+        el.ribThicknessTag.textContent = '= Gap width';
+        el.ribThicknessTag.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+        el.ribThicknessSub.textContent = 'Becomes open gap when inverted';
+
+        el.formulaSummary.innerHTML = `
+          <div>Cell pitch = W_rib + S_gap</div>
+          <div>Rib thickness = S_gap (inverted)</div>
+        `;
+      } else {
+        el.btnStandard.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer bg-onshape-500 text-white shadow-sm';
+        el.btnInverted.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
+
+        el.modeBadge.textContent = 'Standard Mode';
+        el.modeBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
+        el.modeDescription.innerHTML = 'In standard (non-inverted) mode, Onshape\'s <strong>Rib thickness</strong> parameter directly controls the solid rib width.';
+
+        el.ribThicknessTag.textContent = '= Rib width';
+        el.ribThicknessTag.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
+        el.ribThicknessSub.textContent = 'Directly sets solid rib width';
+
+        el.formulaSummary.innerHTML = `
+          <div>Cell pitch = W_rib + S_gap</div>
+          <div>Rib thickness = W_rib (direct)</div>
+        `;
+      }
+    }
+
+    // Render Dynamic Cross-Section SVG Diagram
+    function renderDiagram(wRib, sGap, cellPitch) {
+      const svg = el.previewSvg;
+      const safeRib = Math.max(0.05, wRib);
+      const safeGap = Math.max(0.05, sGap);
+      const totalUnit = safeRib + safeGap;
+
+      // Normalize ratio so both rib and gap remain legible even at extreme ratios
+      let ribRatio = safeRib / totalUnit;
+      ribRatio = Math.min(Math.max(ribRatio, 0.16), 0.84);
+      const gapRatio = 1 - ribRatio;
+
+      // Layout constants inside 560x190 viewBox
+      const startX = 40;
+      const totalDrawWidth = 480;
+      const numCycles = 3; // Show 3 full pitch cycles + 1 closing rib
+      const unitPx = totalDrawWidth / (numCycles + ribRatio);
+      const ribPx = unitPx * ribRatio;
+      const gapPx = unitPx * gapRatio;
+
+      const baseTopY = 128;
+      const baseHeight = 26;
+      const ribTopY = 66;
+      const ribHeight = baseTopY - ribTopY;
+
+      let shapes = '';
+
+      // Base plate across bottom
+      shapes += `
+        <rect x="${startX - 10}" y="${baseTopY}" width="${totalDrawWidth + 20}" height="${baseHeight}" rx="3"
+              class="fill-slate-300 dark:fill-slate-700" />
+      `;
+
+      // Draw ribs and gaps
+      for (let i = 0; i <= numCycles; i++) {
+        const rx = startX + i * unitPx;
+        // Solid Rib
+        shapes += `
+          <rect x="${rx.toFixed(1)}" y="${ribTopY}" width="${ribPx.toFixed(1)}" height="${ribHeight}" rx="2"
+                fill="#1b64f2" />
+        `;
+
+        // Gap pocket between ribs
+        if (i < numCycles) {
+          const gx = rx + ribPx;
+          shapes += `
+            <rect x="${gx.toFixed(1)}" y="${ribTopY + 4}" width="${gapPx.toFixed(1)}" height="${ribHeight - 4}"
+                  fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" />
+          `;
+        }
+      }
+
+      // Dimension 1: Rib Width (over 1st rib)
+      const r1Start = startX;
+      const r1End = startX + ribPx;
+      const r1Mid = (r1Start + r1End) / 2;
+
+      // Dimension 2: Gap Width (over 1st gap)
+      const g1Start = r1End;
+      const g1End = g1Start + gapPx;
+      const g1Mid = (g1Start + g1End) / 2;
+
+      // Dimension 3: Cell Pitch (center-to-center from Rib 2 to Rib 3)
+      const pStart = startX + unitPx + ribPx / 2;
+      const pEnd = startX + 2 * unitPx + ribPx / 2;
+      const pMid = (pStart + pEnd) / 2;
+
+      const fRib = `${formatNum(wRib)} mm`;
+      const fGap = `${formatNum(sGap)} mm`;
+      const fPitch = `${formatNum(cellPitch)} mm`;
+
+      const annotations = `
+        <!-- Rib Width Dimension -->
+        <line x1="${r1Start}" y1="42" x2="${r1Start}" y2="${ribTopY - 3}" stroke="#1b64f2" stroke-width="1.2" />
+        <line x1="${r1End}" y1="42" x2="${r1End}" y2="${ribTopY - 3}" stroke="#1b64f2" stroke-width="1.2" />
+        <line x1="${r1Start}" y1="46" x2="${r1End}" y2="46" stroke="#1b64f2" stroke-width="1.5" />
+        <text x="${r1Mid}" y="25" text-anchor="middle" font-size="11" font-weight="600" fill="#1b64f2" font-family="Inter, sans-serif">Rib</text>
+        <text x="${r1Mid}" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="#1b64f2" font-family="JetBrains Mono, monospace">${fRib}</text>
+
+        <!-- Gap Width Dimension -->
+        <line x1="${g1End}" y1="42" x2="${g1End}" y2="${ribTopY - 3}" stroke="#64748b" stroke-width="1.2" />
+        <line x1="${g1Start}" y1="46" x2="${g1End}" y2="46" stroke="#64748b" stroke-width="1.5" />
+        <text x="${g1Mid}" y="25" text-anchor="middle" font-size="11" font-weight="600" class="fill-slate-500 dark:fill-slate-400" font-family="Inter, sans-serif">Gap</text>
+        <text x="${g1Mid}" y="38" text-anchor="middle" font-size="11" font-weight="700" class="fill-slate-700 dark:fill-slate-200" font-family="JetBrains Mono, monospace">${fGap}</text>
+
+        <!-- Cell Pitch Dimension (Center-to-Center) -->
+        <line x1="${pStart}" y1="${ribTopY + 12}" x2="${pStart}" y2="174" stroke="#10b981" stroke-width="1.2" stroke-dasharray="3,2" />
+        <line x1="${pEnd}" y1="${ribTopY + 12}" x2="${pEnd}" y2="174" stroke="#10b981" stroke-width="1.2" stroke-dasharray="3,2" />
+        <line x1="${pStart}" y1="168" x2="${pEnd}" y2="168" stroke="#10b981" stroke-width="1.6" />
+        <circle cx="${pStart}" cy="168" r="2.5" fill="#10b981" />
+        <circle cx="${pEnd}" cy="168" r="2.5" fill="#10b981" />
+        <rect x="${pMid - 64}" y="158" width="128" height="18" rx="4" class="fill-slate-50 dark:fill-slate-950" />
+        <text x="${pMid}" y="171" text-anchor="middle" font-size="11" font-weight="700" fill="#059669" font-family="JetBrains Mono, monospace">Pitch: ${fPitch}</text>
+      `;
+
+      svg.innerHTML = shapes + annotations;
+    }
+
+    // Main Calculation Function
+    function calculate() {
+      const wRib = Math.max(0, parseFloat(el.ribWidth.value) || 0);
+      const sGap = Math.max(0, parseFloat(el.gapWidth.value) || 0);
+      const sGapLen = state.isSquare ? sGap : Math.max(0, parseFloat(el.gapLength.value) || 0);
+
+      const cellPitch = wRib + sGap;
+      const cellPitchLength = wRib + sGapLen;
+      const ribThickness = state.isInverted ? sGap : wRib;
+
+      el.outCellPitch.textContent = `${formatNum(cellPitch)} mm`;
+      el.outCellPitchLength.textContent = `${formatNum(cellPitchLength)} mm`;
+      el.outRibThickness.textContent = `${formatNum(ribThickness)} mm`;
+
+      el.validationNote.innerHTML = `
+        Verify in Onshape: Solid ribs measure <strong class="text-slate-700 dark:text-slate-200">${formatNum(wRib)} mm</strong> wide with <strong class="text-slate-700 dark:text-slate-200">${formatNum(sGap)} mm</strong> open spaces between them.
+      `;
+
+      renderDiagram(wRib, sGap, cellPitch);
+    }
+
+    // Event Listeners
+    el.btnInverted.addEventListener('click', () => {
+      state.isInverted = true;
+      updateModeUI();
+      calculate();
+    });
+
+    el.btnStandard.addEventListener('click', () => {
+      state.isInverted = false;
+      updateModeUI();
+      calculate();
+    });
+
+    el.ribWidth.addEventListener('input', () => {
+      state.ribWidth = parseFloat(el.ribWidth.value) || 0;
+      calculate();
+    });
+
+    el.gapWidth.addEventListener('input', () => {
+      state.gapWidth = parseFloat(el.gapWidth.value) || 0;
+      calculate();
+    });
+
+    el.gapLength.addEventListener('input', () => {
+      state.gapLength = parseFloat(el.gapLength.value) || 0;
+      calculate();
+    });
+
+    el.squareGrid.addEventListener('change', () => {
+      state.isSquare = el.squareGrid.checked;
+      if (state.isSquare) {
+        el.lengthGapContainer.classList.add('hidden');
+      } else {
+        el.lengthGapContainer.classList.remove('hidden');
+      }
+      calculate();
+    });
+
+    // Copy buttons
+    document.querySelectorAll('.copy-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-copy-target');
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          copyValue(targetEl.textContent.trim());
+        }
+      });
+    });
+
+    // Load screenshot example button (1 mm rib, 2 mm gap, 79 mm length gap -> 3 mm pitch, 80 mm length pitch, 2 mm rib thickness)
+    el.presetScreenshotBtn.addEventListener('click', () => {
+      state.isInverted = true;
+      state.ribWidth = 1;
+      state.gapWidth = 2;
+      state.isSquare = false;
+      state.gapLength = 79;
+
+      el.ribWidth.value = '1';
+      el.gapWidth.value = '2';
+      el.squareGrid.checked = false;
+      el.lengthGapContainer.classList.remove('hidden');
+      el.gapLength.value = '79';
+
+      updateModeUI();
+      calculate();
+      showToast('Loaded screenshot example (3 mm / 80 mm / 2 mm)');
+    });
+
+    // Initial Render
+    updateModeUI();
+    calculate();
+  </script>
+</body>
+</html>
